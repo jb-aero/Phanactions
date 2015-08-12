@@ -1,12 +1,16 @@
 Phanactions
 ========
 
-An extension to [CommandHelper](https://github.com/sk89q/CommandHelper) providing access to features of Factions.
+An extension to [CommandHelper](https://github.com/sk89q/CommandHelper) providing access to features of
+[Factions](https://github.com/drtshock/Factions).
 
-Downloads are not available while the extension is still in beta.
+[DOWNLOADS](https://www.dropbox.com/s/oesjpel62sqihg5/phanactions-1.0-SNAPSHOT.jar?dl=0)
 
 ## Documentation
-Add the following to main.ms to give yourself a /docs command that tabcompletes with functionnames and classes. For example, "/docs SKWorldGuard" will return a list of all the WorldGuard functions, but you can see all functions containing "sk" by typing "/docs sk" and hitting tab. "/docs sk_region_addmember" will give you the documentation for the sk_region_addmember function.
+Add the following to main.ms to give yourself a /docs command that tabcompletes with functionnames and classes.
+For example, "/docs FactionsPlugin" will return a list of all the WorldGuard functions, but you can see all functions
+containing "faction" by typing "/docs faction" and hitting tab. "/docs faction_finfo" will give you the documentation
+for the faction_finfo function.
 
 The below can also be found on the [forums](http://forum.enginehub.org/threads/jb_aeros-scripts.9347/#post-19243).
 ```

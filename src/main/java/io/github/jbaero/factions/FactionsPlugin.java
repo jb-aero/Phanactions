@@ -1,34 +1,30 @@
 package io.github.jbaero.factions;
 
-import com.laytonsmith.PureUtilities.Version;
 import com.laytonsmith.abstraction.MCLocation;
-import com.laytonsmith.abstraction.MCPlayer;
-import com.laytonsmith.abstraction.MCWorld;
-import com.laytonsmith.abstraction.StaticLayer;
+import com.laytonsmith.abstraction.MCOfflinePlayer;
 import com.laytonsmith.abstraction.bukkit.BukkitMCLocation;
 import com.laytonsmith.annotations.api;
-import com.laytonsmith.core.CHVersion;
 import com.laytonsmith.core.ObjectGenerator;
 import com.laytonsmith.core.Static;
 import com.laytonsmith.core.constructs.CArray;
+import com.laytonsmith.core.constructs.CBoolean;
 import com.laytonsmith.core.constructs.CDouble;
 import com.laytonsmith.core.constructs.CInt;
+import com.laytonsmith.core.constructs.CNull;
 import com.laytonsmith.core.constructs.CString;
 import com.laytonsmith.core.constructs.Construct;
 import com.laytonsmith.core.constructs.Target;
 import com.laytonsmith.core.environments.CommandHelperEnvironment;
 import com.laytonsmith.core.environments.Environment;
 import com.laytonsmith.core.exceptions.ConfigRuntimeException;
-import com.laytonsmith.core.functions.AbstractFunction;
-import com.laytonsmith.core.functions.Exceptions;
+import com.laytonsmith.core.functions.Exceptions.ExceptionType;
 import com.massivecraft.factions.Board;
 import com.massivecraft.factions.FLocation;
 import com.massivecraft.factions.FPlayer;
 import com.massivecraft.factions.FPlayers;
 import com.massivecraft.factions.Faction;
 import com.massivecraft.factions.Factions;
-import com.massivecraft.factions.cmd.CmdCreate;
-import com.massivecraft.factions.listeners.FactionsPlayerListener;
+import com.massivecraft.factions.iface.RelationParticipator;
 
 /**
  * FactionsPlugin, 8/8/2015 10:22 PM
@@ -41,62 +37,34 @@ public class FactionsPlugin {
 		return "Provides various methods for hooking into Factions.";
 	}
 
-	public static FLocation loc(MCLocation loc) {
-		return new FLocation(loc.getWorld().getName(), loc.getChunk().getX(), loc.getChunk().getZ());
-	}
-
-	public static MCLocation locThisIsWrongDoNotUse(FLocation loc) {
-		MCWorld world = Static.getWorld(loc.getWorldName(), Target.UNKNOWN);
-		int y = world.getHighestBlockAt((int) loc.getX(), (int) loc.getZ()).getY();
-		return StaticLayer.GetConvertor().GetLocation(world, loc.getX(), y, loc.getZ(), 0, 0);
-	}
-
-	public static abstract class FactionFunction extends AbstractFunction {
-
-		@Override
-		public boolean isRestricted() {
-			return true;
-		}
-
-		@Override
-		public Version since() {
-			return CHVersion.V3_3_1;
-		}
-
-		@Override
-		public Boolean runAsync() {
-			return false;
-		}
-	}
-
 	@api
-	public static class get_faction extends FactionFunction {
+	public static class get_faction extends FHelper.FactionFunction {
 
 		@Override
-		public Exceptions.ExceptionType[] thrown() {
-			return new Exceptions.ExceptionType[0];
+		public ExceptionType[] thrown() {
+			return new ExceptionType[0];
 		}
 
 		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
-			MCPlayer pl = null;
+			MCOfflinePlayer pl = null;
 			Faction faction = null;
 			if (args.length == 0) {
-				pl = ((CommandHelperEnvironment)env.getEnv(CommandHelperEnvironment.class)).GetPlayer();
+				pl = env.getEnv(CommandHelperEnvironment.class).GetPlayer();
 				if (pl == null) {
 					throw new ConfigRuntimeException("A player context was expected for " + getName(),
-							Exceptions.ExceptionType.PlayerOfflineException, t);
+							ExceptionType.PlayerOfflineException, t);
 				}
 			} else {
 				if (args[0] instanceof CArray) {
-					FLocation loc = loc(ObjectGenerator.GetGenerator().location(args[0], null, t));
+					FLocation loc = FHelper.loc(ObjectGenerator.GetGenerator().location(args[0], null, t));
 					faction = Board.getInstance().getFactionAt(loc);
 				} else {
-					pl = Static.GetPlayer(args[0], t);
+					pl = Static.GetUser(args[0], t);
 				}
 			}
 			if (pl != null) {
-				faction = FPlayers.getInstance().getById(pl.getUniqueId().toString()).getFaction();
+				faction = FPlayers.getInstance().getById(pl.getUniqueID().toString()).getFaction();
 			}
 			if (faction == null) {
 				faction = Factions.getInstance().getWilderness();
@@ -122,11 +90,11 @@ public class FactionsPlugin {
 	}
 
 	@api
-	public static class get_factions extends FactionFunction {
+	public static class get_factions extends FHelper.FactionFunction {
 
 		@Override
-		public Exceptions.ExceptionType[] thrown() {
-			return new Exceptions.ExceptionType[0];
+		public ExceptionType[] thrown() {
+			return new ExceptionType[0];
 		}
 
 		@Override
@@ -155,11 +123,11 @@ public class FactionsPlugin {
 	}
 
 	@api
-	public static class faction_finfo extends FactionFunction {
+	public static class faction_finfo extends FHelper.FactionFunction {
 
 		@Override
-		public Exceptions.ExceptionType[] thrown() {
-			return new Exceptions.ExceptionType[0];
+		public ExceptionType[] thrown() {
+			return new ExceptionType[0];
 		}
 
 		@Override
@@ -172,8 +140,10 @@ public class FactionsPlugin {
 			ret.set("kills", new CInt(faction.getKills(), t), t);
 			ret.set("deaths", new CInt(faction.getDeaths(), t), t);
 			ret.set("power", new CDouble(faction.getPower(), t), t);
-			ret.set("home", ObjectGenerator.GetGenerator().location(new BukkitMCLocation(faction.getHome())), t);
-			ret.set("admin", new CString(faction.getFPlayerAdmin().getId(), t), t);
+			ret.set("home", faction.hasHome() ? ObjectGenerator.GetGenerator().location(
+					new BukkitMCLocation(faction.getHome())) : CNull.NULL, t);
+			FPlayer admin = faction.getFPlayerAdmin();
+			ret.set("admin", admin == null ? CNull.NULL : new CString(admin.getId(), t), t);
 			ret.set("founded", new CInt(faction.getFoundedDate(), t), t);
 			return ret;
 		}
@@ -195,22 +165,23 @@ public class FactionsPlugin {
 	}
 
 	@api
-	public static class faction_pinfo extends FactionFunction {
+	public static class faction_pinfo extends FHelper.FactionFunction {
 
 		@Override
-		public Exceptions.ExceptionType[] thrown() {
-			return new Exceptions.ExceptionType[0];
+		public ExceptionType[] thrown() {
+			return new ExceptionType[0];
 		}
 
 		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
-			FPlayer pl = FPlayers.getInstance().getById(Static.GetPlayer(args[0], t).getUniqueId().toString());
+			FPlayer pl = FPlayers.getInstance().getById(Static.GetUser(args[0], t).getUniqueID().toString());
 			CArray ret = CArray.GetAssociativeArray(t);
 			ret.set("tag", pl.getTag());
 			ret.set("title", pl.getTitle());
 			ret.set("kills", new CInt(pl.getKills(), t), t);
 			ret.set("deaths", new CInt(pl.getDeaths(), t), t);
 			ret.set("power", new CDouble(pl.getPower(), t), t);
+			ret.set("role", new CString(pl.getRole().toString(), t), t);
 			return ret;
 		}
 
@@ -231,18 +202,26 @@ public class FactionsPlugin {
 	}
 
 	@api
-	public static class faction_relation extends FactionFunction {
+	public static class faction_relation extends FHelper.FactionFunction {
 
 		@Override
-		public Exceptions.ExceptionType[] thrown() {
-			return new Exceptions.ExceptionType[0];
+		public ExceptionType[] thrown() {
+			return new ExceptionType[]{ExceptionType.NotFoundException};
 		}
 
 		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
-			Faction a = Factions.getInstance().getBestTagMatch(args[0].val());
-			Faction b = Factions.getInstance().getBestTagMatch(args[0].val());
-			return new CString(a.getRelationTo(b).toString(), t);
+			RelationParticipator a = FHelper.factionOrPlayer(args[0], t);
+			RelationParticipator b = FHelper.factionOrPlayer(args[1], t);
+			if (a == null) {
+				throw new ConfigRuntimeException("Could not find a relatable object for argument 1.",
+						ExceptionType.NotFoundException, t);
+			}
+			if (b == null) {
+				throw new ConfigRuntimeException("Could not find a relatable object for argument 2.",
+						ExceptionType.NotFoundException, t);
+			}
+			return new CString(a.getRelationTo(b).name(), t);
 		}
 
 		@Override
@@ -257,7 +236,45 @@ public class FactionsPlugin {
 
 		@Override
 		public String docs() {
-			return "string {factionA, factionB} Given two factions, returns the relationship between them.";
+			return "string {factionA/playerA/locationA, factionB/playerB/locationB} Given two factions, two players,"
+					+ " two locations, or any combination of the three, returns the relationship between them.";
+		}
+	}
+
+	public static class faction_can_build extends FHelper.FactionFunction {
+
+		@Override
+		public ExceptionType[] thrown() {
+			return new ExceptionType[0];
+		}
+
+		@Override
+		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
+			RelationParticipator user = FHelper.factionOrPlayer(args[0], t);
+			MCLocation loc = ObjectGenerator.GetGenerator().location(args[1], null, t);
+			if (user instanceof Faction) {
+				return CBoolean.get(FHelper.factionCanBuildDestroyBlock((Faction) user, loc));
+			}
+			if (user instanceof FPlayer) {
+				return CBoolean.get(FHelper.playerCanBuildDestroyBlock((FPlayer) user, loc));
+			}
+			throw new ConfigRuntimeException("Could not determine a Faction or player based on arg 1.",
+					ExceptionType.NotFoundException, t);
+		}
+
+		@Override
+		public String getName() {
+			return "faction_can_build";
+		}
+
+		@Override
+		public Integer[] numArgs() {
+			return new Integer[]{2};
+		}
+
+		@Override
+		public String docs() {
+			return "boolean {Faction/Player, location} Returns whether the provided Faction or Player can build at the given location.";
 		}
 	}
 }
