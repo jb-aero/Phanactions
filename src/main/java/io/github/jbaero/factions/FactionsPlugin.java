@@ -241,6 +241,7 @@ public class FactionsPlugin {
 		}
 	}
 
+	@api
 	public static class faction_can_build extends FHelper.FactionFunction {
 
 		@Override
