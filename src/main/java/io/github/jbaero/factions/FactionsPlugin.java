@@ -16,8 +16,9 @@ import com.laytonsmith.core.constructs.Construct;
 import com.laytonsmith.core.constructs.Target;
 import com.laytonsmith.core.environments.CommandHelperEnvironment;
 import com.laytonsmith.core.environments.Environment;
+import com.laytonsmith.core.exceptions.CRE.CRENotFoundException;
+import com.laytonsmith.core.exceptions.CRE.CREPlayerOfflineException;
 import com.laytonsmith.core.exceptions.ConfigRuntimeException;
-import com.laytonsmith.core.functions.Exceptions.ExceptionType;
 import com.massivecraft.factions.Board;
 import com.massivecraft.factions.FLocation;
 import com.massivecraft.factions.FPlayer;
@@ -41,19 +42,13 @@ public class FactionsPlugin {
 	public static class get_faction extends FHelper.FactionFunction {
 
 		@Override
-		public ExceptionType[] thrown() {
-			return new ExceptionType[0];
-		}
-
-		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
 			MCOfflinePlayer pl = null;
 			Faction faction = null;
 			if (args.length == 0) {
 				pl = env.getEnv(CommandHelperEnvironment.class).GetPlayer();
 				if (pl == null) {
-					throw new ConfigRuntimeException("A player context was expected for " + getName(),
-							ExceptionType.PlayerOfflineException, t);
+					throw new CREPlayerOfflineException("A player context was expected for " + getName(), t);
 				}
 			} else {
 				if (args[0] instanceof CArray) {
@@ -93,15 +88,10 @@ public class FactionsPlugin {
 	public static class get_factions extends FHelper.FactionFunction {
 
 		@Override
-		public ExceptionType[] thrown() {
-			return new ExceptionType[0];
-		}
-
-		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
 			CArray ret = new CArray(t);
 			for (Faction f : Factions.getInstance().getAllFactions()) {
-				ret.push(new CString(f.getTag(), t));
+				ret.push(new CString(f.getTag(), t), t);
 			}
 			return ret;
 		}
@@ -124,11 +114,6 @@ public class FactionsPlugin {
 
 	@api
 	public static class faction_finfo extends FHelper.FactionFunction {
-
-		@Override
-		public ExceptionType[] thrown() {
-			return new ExceptionType[0];
-		}
 
 		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
@@ -168,11 +153,6 @@ public class FactionsPlugin {
 	public static class faction_pinfo extends FHelper.FactionFunction {
 
 		@Override
-		public ExceptionType[] thrown() {
-			return new ExceptionType[0];
-		}
-
-		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
 			FPlayer pl = FPlayers.getInstance().getById(Static.GetUser(args[0], t).getUniqueID().toString());
 			CArray ret = CArray.GetAssociativeArray(t);
@@ -205,21 +185,14 @@ public class FactionsPlugin {
 	public static class faction_relation extends FHelper.FactionFunction {
 
 		@Override
-		public ExceptionType[] thrown() {
-			return new ExceptionType[]{ExceptionType.NotFoundException};
-		}
-
-		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
 			RelationParticipator a = FHelper.factionOrPlayer(args[0], t);
 			RelationParticipator b = FHelper.factionOrPlayer(args[1], t);
 			if (a == null) {
-				throw new ConfigRuntimeException("Could not find a relatable object for argument 1.",
-						ExceptionType.NotFoundException, t);
+				throw new CRENotFoundException("Could not find a relatable object for argument 1.", t);
 			}
 			if (b == null) {
-				throw new ConfigRuntimeException("Could not find a relatable object for argument 2.",
-						ExceptionType.NotFoundException, t);
+				throw new CRENotFoundException("Could not find a relatable object for argument 2.", t);
 			}
 			return new CString(a.getRelationTo(b).name(), t);
 		}
@@ -245,11 +218,6 @@ public class FactionsPlugin {
 	public static class faction_can_build extends FHelper.FactionFunction {
 
 		@Override
-		public ExceptionType[] thrown() {
-			return new ExceptionType[0];
-		}
-
-		@Override
 		public Construct exec(Target t, Environment env, Construct... args) throws ConfigRuntimeException {
 			RelationParticipator user = FHelper.factionOrPlayer(args[0], t);
 			MCLocation loc = ObjectGenerator.GetGenerator().location(args[1], null, t);
@@ -259,8 +227,7 @@ public class FactionsPlugin {
 			if (user instanceof FPlayer) {
 				return CBoolean.get(FHelper.playerCanBuildDestroyBlock((FPlayer) user, loc));
 			}
-			throw new ConfigRuntimeException("Could not determine a Faction or player based on arg 1.",
-					ExceptionType.NotFoundException, t);
+			throw new CRENotFoundException("Could not determine a Faction or player based on arg 1.", t);
 		}
 
 		@Override

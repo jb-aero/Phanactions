@@ -2,11 +2,9 @@ package io.github.jbaero.factions;
 
 import com.laytonsmith.PureUtilities.SimpleVersion;
 import com.laytonsmith.PureUtilities.Version;
-import com.laytonsmith.core.CHVersion;
 import com.laytonsmith.core.Static;
 import com.laytonsmith.core.extensions.AbstractExtension;
 import com.laytonsmith.core.extensions.MSExtension;
-import com.laytonsmith.core.functions.AbstractFunction;
 
 /**
  * Phanactions, 8/8/2015 10:04 PM
